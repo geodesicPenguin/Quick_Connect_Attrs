@@ -27,13 +27,13 @@ def ATTRIBUTE_UI():
 
         # Diplsays selected objects and allows the user to change source and destination inputs
             with pm.rowLayout(numberOfColumns=menuItemNum):
-                pm.text(label='Source Object: ',width=w)
-                sourceInput = pm.textField('source_input',width=w*2,text=)
+                pm.text(label='Source Object: ',width=w*1.5)
+                sourceInput = pm.textField('source_input',width=w*2,text='')
                 pm.button('refresh_source',label='Refresh',width=w,statusBarMessage='Change input to first object in current selection.',command=EDIT_SELECTION)
             with pm.rowLayout(numberOfColumns=menuItemNum):
                 pm.separator(height=10,width=w*5,style='none')
             with pm.rowLayout(numberOfColumns=menuItemNum):
-                pm.text(label='Destination Object: ',width=w)
+                pm.text(label='Destination Objects: ',width=w*1.5)
                 destInput = pm.textScrollList('dest_input',allowMultiSelection=1,append=None,width=w*2)# default selected items indexed after 0)
                 pm.button('refresh_dest',label="Refresh",statusBarMessage='Change list to current objects in selection.',command=EDIT_SELECTION) # refreshes list to what is selected 
                 pm.button('remove_object',label="Remove",statusBarMessage='Remove currenly hilighted object/s in list.',command=EDIT_SELECTION) # removes object from list
@@ -62,7 +62,7 @@ def EDIT_SELECTION():
     '''
     pass
 
-'''
+
 def SELECTION_QUERY():
     '''
     Stores user selection.
@@ -107,5 +107,14 @@ def CONNECT_ATTRIBUTES(attributes):
     Connects attributes.
     '''
     pass
-'''
 
+
+# something about attributes
+# sel = pm.ls(sl=1)[0]
+
+# attrList = pm.listAttr(sel)
+
+# for attr in attrList:
+
+#     attrObj = pm.Attribute(f'{sel}.{attr}')
+#     print(attrObj)
