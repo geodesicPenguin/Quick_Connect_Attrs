@@ -19,8 +19,12 @@ def ATTRIBUTE_UI():
         pm.deleteUI(mainWin)
 
     # General UI values    
-    menuItemNum=10 # custom default UI row item limit 
-    w = 100 #width
+    menuItemNum = 10 # custom default UI row item limit 
+    w = 100 # width
+    initalSelect = pm.ls(sl=1) # opens window with current selection as default inputs
+    if not initalSelect:
+        initalSelect = ['']
+
     with pm.window(mainWin,resizeToFitChildren=1,title='Connect Attributes',sizeable=0):
         
         with pm.columnLayout():
@@ -28,63 +32,106 @@ def ATTRIBUTE_UI():
         # Diplsays selected objects and allows the user to change source and destination inputs
             with pm.rowLayout(numberOfColumns=menuItemNum):
                 pm.text(label='Source Object: ',width=w*1.5)
-                sourceInput = pm.textField('source_input',width=w*2,text='')
-                pm.button('refresh_source',label='Refresh',width=w,statusBarMessage='Change input to first object in current selection.',command=EDIT_SELECTION)
+                sourceInput = pm.textField('source_input',width=w*2,text=initalSelect[0])
+                sourceRefreshBtn = pm.button('refresh_source',label='Refresh',width=w,annotation='Change input to first object in current selection.')
             with pm.rowLayout(numberOfColumns=menuItemNum):
                 pm.separator(height=10,width=w*5,style='none')
             with pm.rowLayout(numberOfColumns=menuItemNum):
                 pm.text(label='Destination Objects: ',width=w*1.5)
-                destInput = pm.textScrollList('dest_input',allowMultiSelection=1,append=None,width=w*2)# default selected items indexed after 0)
-                pm.button('refresh_dest',label="Refresh",statusBarMessage='Change list to current objects in selection.',command=EDIT_SELECTION) # refreshes list to what is selected 
-                pm.button('remove_object',label="Remove",statusBarMessage='Remove currenly hilighted object/s in list.',command=EDIT_SELECTION) # removes object from list
+                destInput = pm.textScrollList('dest_input',allowMultiSelection=1,width=w*2,append=initalSelect[1::])# default selected items indexed after 0)
+                destRefreshBtn = pm.button('refresh_dest',label="Refresh",annotation='Change list to current objects in selection.',command=pm.Callback(EDIT_SELECTION, edit_type='refresh', object_input=destInput)) # refreshes list to what is selected 
+                destRemoveBtn = pm.button('remove_object',label="Remove",annotation='Remove currenly hilighted object/s in list.',command=pm.Callback(EDIT_SELECTION, edit_type='remove', object_input=destInput)) # removes object from list
             with pm.rowLayout(numberOfColumns=menuItemNum):
                 pm.separator(height=10,width=w*5.15,style='in')
         
-            # Displays attributes of source object and destination attributes shared by all destination objects
+            # Displays attributes of source object and destination attributes shared by all destination objects # IDEASSS --- should a DOUBLE CLICK COMMAND, connect all common connections? IE - outColor into baseColor? maybe in the distant future...
             with pm.rowLayout(numberOfColumns=menuItemNum):
                 with pm.columnLayout():
                     pm.text(label='Source Attributes')
-                    pm.textScrollList('source_attrs',append=None)#list of attrs on source obj -- UPDATE REG)
+                    sourceAttrsList = pm.textScrollList('source_attrs',allowMultiSelection=0)#list of attrs on source obj -- UPDATE REG)
                 with pm.columnLayout():
                     pm.text(label='Destination Attributes')
-                    pm.textScrollList('dest_attrs',append=None)#dest attrs that are the same -- UPDATE REG)
-        
+                    destAttrsList = pm.textScrollList('dest_attrs')
             # Execute or cancel
         
             with pm.rowLayout(numberOfColumns=menuItemNum):
                 pm.separator(width=w*1.5,style='none')
-                pm.button('execute_button',label='OK',width=w,statusBarMessage='Connect attributes. This is undoable')
-                pm.button('cancel_button',label='Cancel',width=w)
+                pm.button('execute_button',label='OK',width=w,annotation='Connect attributes. This is undoable.')
+                pm.button('cancel_button',label='Cancel',width=w,command="print('CLOSE')")
 
-def EDIT_SELECTION():
+    # All UI commands in order of appearance - Ease of use when updating functions in the fututre
+    #sourceInput.textChangedCommand(pm.Callback(ATTRIBUTE_QUERY, edit_type = 'source', object_input = sourceInput, attribute_list = sourceAttrsList)) 
+    sourceRefreshBtn.setCommand(pm.Callback(EDIT_SELECTION, edit_type='refresh', object_input=sourceInput, attribute_list=sourceAttrsList))
+    destRefreshBtn.setCommand(pm.Callback(EDIT_SELECTION, edit_type='refresh', object_input=destInput, attribute_list=destAttrsList))
+    destRemoveBtn.setCommand(pm.Callback(EDIT_SELECTION, edit_type='remove', object_input=destInput, attribute_list=destAttrsList))
+    
+def EDIT_SELECTION(edit_type,object_input,attribute_list):
     '''
-    Updates UI source and destination add or remove selected objects
-    '''
-    pass
+    Updates UI source and destination to add or remove selected objects
 
+    returns None
+    '''
+
+    activeSelection = SELECTION_QUERY()
+
+    if edit_type == 'refresh':
+
+        if 'source_input' in object_input:
+            if len(activeSelection) > 1:
+                pm.Mel.mprint('Multiple things selected -- storing only first item in selection list.')
+            object_input.setText(activeSelection[0])
+            ATTRIBUTE_QUERY(input_type='source', object_input=object_input, attribute_list=attribute_list)
+
+        if 'dest_input' in object_input:
+            object_input.removeAll()
+            object_input.append(activeSelection)
+            ATTRIBUTE_QUERY(input_type='dest', object_input=object_input, attribute_list=attribute_list)
+            
+
+    if edit_type == 'remove':
+        if 'dest_input' in object_input:
+                activeSelection = object_input.getSelectItem()
+                object_input.removeItem(activeSelection)
+                ATTRIBUTE_QUERY(input_type='dest', object_input=object_input, attribute_list=attribute_list)
 
 def SELECTION_QUERY():
     '''
     Stores user selection.
-    Only one outgoing connection, but multiple incoming connections.
+    Errors if nothing is selected.
 
-    returns list of selections [OUTGOING,[INCOMING]]
+    returns selection list
     '''
+
     select = pm.ls(selection=1)
+    if not select:
+        pm.error("You must select something.")
+    return select
 
-    # outgoing connection
-
-
-    # incoming connections
-
-def ATTRIBUTE_QUERY(in_attributes):
+def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
     '''
-    Queries available attributes from in-attributes.
+    Queries available attributes from source object and destination objects
     Does not allow for attributes that are not shared by all recieving an incoming connection.
     
     returns (dict?)list of all available attributes for connection
     '''
-    attributeTypes = pm.listAttr()
+
+    if input_type == 'source':
+        sourceObject = object_input.getText()
+        sourceAttrs = pm.listAttr(sourceObject)
+        attribute_list.removeAll()
+        attribute_list.append(sourceAttrs)
+
+    if input_type == 'dest':
+        destObjects = object_input.getAllItems()
+
+        for obj in destObjects:
+            objAttrs = pm.listAttr(obj)
+            allAttrs = [] + objAttrs
+            # MUST FIND LIST ITEMS THAT MATCH LENGTH OF THE TOTAL OBJECT COUNT ie: attribute_1 found 10 times == append to destination list.
+            # create dictionary with key values for all found attributes, if key is found, value increases by 1.
+            # loop thru all values, if value == number of objects, append.
+
+
 
 def CONNECTION_TYPE_QUERY(out_attrribute,in_attributes):
     '''
@@ -95,12 +142,12 @@ def CONNECTION_TYPE_QUERY(out_attrribute,in_attributes):
     inAttrType = pm.listAttr()
 
 
-    incompatibleAttrs = 
+    incompatibleAttrs = 3
     lineIndex = -1
     for attr in in_attributes:
-        if attr 
-        lineIndex += 1 
-        pm.textScrollList('dest_input',edit=1,lineFont=(lineIndex,'obliqueLabelFont'))
+        if attr:
+            lineIndex += 1 
+            pm.textScrollList('dest_input',edit=1,lineFont=(lineIndex,'obliqueLabelFont'))
 
 def CONNECT_ATTRIBUTES(attributes):
     '''
