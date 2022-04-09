@@ -4,6 +4,7 @@ Made for py3 but if you want a py2 version lmk
 '''
 
 import pymel.core as pm
+from sys import exit
 
 def ATTRIBUTE_UI():
     '''
@@ -48,10 +49,10 @@ def ATTRIBUTE_UI():
             with pm.rowLayout(numberOfColumns=menuItemNum):
                 with pm.columnLayout():
                     pm.text(label='Source Attributes')
-                    sourceAttrsList = pm.textScrollList('source_attrs',allowMultiSelection=0)#list of attrs on source obj -- UPDATE REG)
+                    sourceAttrsList = pm.textScrollList('source_attrs')#list of attrs on source obj -- UPDATE REG)
                 with pm.columnLayout():
                     pm.text(label='Destination Attributes')
-                    destAttrsList = pm.textScrollList('dest_attrs')
+                    destAttrsList = pm.textScrollList('dest_attrs',allowMultiSelection=1)
             # Execute or cancel
         
             with pm.rowLayout(numberOfColumns=menuItemNum):
@@ -105,6 +106,7 @@ def SELECTION_QUERY():
     select = pm.ls(selection=1)
     if not select:
         pm.error("You must select something.")
+
     return select
 
 def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
@@ -122,11 +124,28 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
         attribute_list.append(sourceAttrs)
 
     if input_type == 'dest':
+        commonDestAttrs = []
+        allAttrs = []
         destObjects = object_input.getAllItems()
+        totalObjs = len(destObjects)
 
         for obj in destObjects:
             objAttrs = pm.listAttr(obj)
-            allAttrs = [] + objAttrs
+            allAttrs.extend(objAttrs)
+
+        totalAttrs = set(allAttrs) # removes duplicate attributes
+        attrDict = {i : 0 for i in totalAttrs}
+
+        for attr in allAttrs:
+            attrDict[attr] += 1
+
+        for attr in totalAttrs:
+            if attrDict[attr] == totalObjs:
+                commonDestAttrs.append(attr)
+
+        attribute_list.removeAll()
+        attribute_list.append(commonDestAttrs)
+
             # MUST FIND LIST ITEMS THAT MATCH LENGTH OF THE TOTAL OBJECT COUNT ie: attribute_1 found 10 times == append to destination list.
             # create dictionary with key values for all found attributes, if key is found, value increases by 1.
             # loop thru all values, if value == number of objects, append.
