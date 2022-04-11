@@ -3,6 +3,8 @@ This tool easily lets you connect multiple attributes between nodes within a UI.
 Made for py3 but if you want a py2 version lmk
 '''
 
+from ctypes import py_object
+from enum import unique
 import pymel.core as pm
 from sys import exit
 
@@ -61,14 +63,16 @@ def ATTRIBUTE_UI():
                 pm.button('cancel_button',label='Cancel',width=w,command="print('CLOSE')")
 
     # All UI commands in order of appearance - Ease of use when updating functions in the fututre
-    #sourceInput.textChangedCommand(pm.Callback(ATTRIBUTE_QUERY, edit_type = 'source', object_input = sourceInput, attribute_list = sourceAttrsList)) 
+    #sourceInput.textChangedCommand(pm.Callback(ATTRIBUTE_QUERY, edit_type = 'source', object_input = sourceInput, attribute_list = sourceAttrsList)) to be deleted 
     sourceRefreshBtn.setCommand(pm.Callback(EDIT_SELECTION, edit_type='refresh', object_input=sourceInput, attribute_list=sourceAttrsList))
     destRefreshBtn.setCommand(pm.Callback(EDIT_SELECTION, edit_type='refresh', object_input=destInput, attribute_list=destAttrsList))
     destRemoveBtn.setCommand(pm.Callback(EDIT_SELECTION, edit_type='remove', object_input=destInput, attribute_list=destAttrsList))
+
     
 def EDIT_SELECTION(edit_type,object_input,attribute_list):
     '''
-    Updates UI source and destination to add or remove selected objects
+    Updates UI source and destination to add or remove selected objects.
+    Automatically runs ATTRIBUTE_QUERY func to update UI.
 
     returns None
     '''
@@ -117,41 +121,49 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
     returns (dict?)list of all available attributes for connection
     '''
 
+    # Getting source attrs simply finds the object's attrs and lists them in the textFieldList.
     if input_type == 'source':
         sourceObject = object_input.getText()
-        sourceAttrs = pm.listAttr(sourceObject)
+        sourceAttrs = sorted(pm.listAttr(sourceObject))
         attribute_list.removeAll()
         attribute_list.append(sourceAttrs)
 
+    # Getting dest attrs is complex, since we only want attrs every object shares. 
+    # We loop through all the objects to get their attrs, then display only attrs found in every object.
     if input_type == 'dest':
-        commonDestAttrs = []
         allAttrs = []
+        attrTypeDict = {}
+        commonAttrsTypes = []
         destObjects = object_input.getAllItems()
-        totalObjs = len(destObjects)
+        objCount = len(destObjects)
 
         for obj in destObjects:
-            objAttrs = pm.listAttr(obj)
-            allAttrs.extend(objAttrs)
+            objAttrs = pm.listAttr(obj,connectable=1,settable=1)
+            for attr in objAttrs:
+                print(attr,'THIS IS THE ATTR')
+                attrType = pm.attributeQuery(attr,attributeType=1,node=obj) 
+                attrTypeDict[attr] = attrType # adds attr as key to do dict with attr type as value
+            allAttrs.extend(objAttrs) # adds object attrs to list of all attrs ie: ['message','outColor','outColor']
 
-        totalAttrs = set(allAttrs) # removes duplicate attributes
-        attrDict = {i : 0 for i in totalAttrs}
+        totalAttrs = sorted(list(set(allAttrs))) # casting as set removes duplicate attributes, then re-casting as a list allows sorting before getting attr types + appending.
+        attrCount = {i : 0 for i in totalAttrs}
 
         for attr in allAttrs:
-            attrDict[attr] += 1
+            attrCount[attr] += 1
 
-        for attr in totalAttrs:
-            if attrDict[attr] == totalObjs:
-                commonDestAttrs.append(attr)
+        attribute_list.removeAll() # Removes all attrs in textFieldList to then re-add new ones
 
-        attribute_list.removeAll()
-        attribute_list.append(commonDestAttrs)
+        for commonAttr in totalAttrs:
+            if attrCount[commonAttr] == objCount:
+                commonAttrsTypes.append(attrTypeDict[commonAttr])
+                attribute_list.append(commonAttr)
 
-            # MUST FIND LIST ITEMS THAT MATCH LENGTH OF THE TOTAL OBJECT COUNT ie: attribute_1 found 10 times == append to destination list.
-            # create dictionary with key values for all found attributes, if key is found, value increases by 1.
-            # loop thru all values, if value == number of objects, append.
+        # Unfortunately, the unique tag system shown in the PyMEL documentation does not work properly
+        # Instead of adding unique tags to each textScrollList index, we must create a mirror list of the elements with the corresponding attr type
+        # ie: attr list = ["caching","translateX",...] attr type list = ["bool","flaot"]
 
-
-
+# NEXT, MAKE A "ON SELECTION" COMMAND FOR SOURCE SCROLL LIST TO UPDATE ATTRIBUTE FONTS BASED ON TYPE
+# FIRST NEED TO MAKE SOURCE INPUT IN ATTRIBUTE_QUERY SAVE OUT ATTR TYPES
 def CONNECTION_TYPE_QUERY(out_attrribute,in_attributes):
     '''
     Updates destination textScrollList UI object to illustrate what connections are/aren't compatible.
