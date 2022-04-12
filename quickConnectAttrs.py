@@ -92,7 +92,6 @@ def EDIT_SELECTION(edit_type,object_input,attribute_list):
             object_input.append(activeSelection)
             ATTRIBUTE_QUERY(input_type='dest', object_input=object_input, attribute_list=attribute_list)
             
-
     if edit_type == 'remove':
         if 'dest_input' in object_input:
                 activeSelection = object_input.getSelectItem()
@@ -118,21 +117,32 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
     Queries available attributes from source object and destination objects
     Does not allow for attributes that are not shared by all recieving an incoming connection.
     
-    returns (dict?)list of all available attributes for connection
+    returns dictionary of all available attributes for connection on source or destination textScrollLists
     '''
 
     # Getting source attrs simply finds the object's attrs and lists them in the textFieldList.
     if input_type == 'source':
+        sourceAttrsDict = {}
         sourceObject = object_input.getText()
-        sourceAttrs = sorted(pm.listAttr(sourceObject))
+        sourceAttrs = sorted(pm.listAttr(sourceObject,connectable=1,settable=1))
+
+        for attr in sourceAttrs:
+                attrType = pm.attributeQuery(attr,attributeType=1,node=sourceObject)
+                sourceAttrsDict[attr] = attrType
+
         attribute_list.removeAll()
         attribute_list.append(sourceAttrs)
+
+        return sourceAttrsDict
+
+         
 
     # Getting dest attrs is complex, since we only want attrs every object shares. 
     # We loop through all the objects to get their attrs, then display only attrs found in every object.
     if input_type == 'dest':
         allAttrs = []
         attrTypeDict = {}
+        commonAttrs = []
         commonAttrsTypes = []
         destObjects = object_input.getAllItems()
         objCount = len(destObjects)
@@ -140,9 +150,8 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
         for obj in destObjects:
             objAttrs = pm.listAttr(obj,connectable=1,settable=1)
             for attr in objAttrs:
-                print(attr,'THIS IS THE ATTR')
                 attrType = pm.attributeQuery(attr,attributeType=1,node=obj) 
-                attrTypeDict[attr] = attrType # adds attr as key to do dict with attr type as value
+                attrTypeDict[attr] = attrType # adds attr as key with attr type as value
             allAttrs.extend(objAttrs) # adds object attrs to list of all attrs ie: ['message','outColor','outColor']
 
         totalAttrs = sorted(list(set(allAttrs))) # casting as set removes duplicate attributes, then re-casting as a list allows sorting before getting attr types + appending.
@@ -154,9 +163,15 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
         attribute_list.removeAll() # Removes all attrs in textFieldList to then re-add new ones
 
         for commonAttr in totalAttrs:
-            if attrCount[commonAttr] == objCount:
-                commonAttrsTypes.append(attrTypeDict[commonAttr])
-                attribute_list.append(commonAttr)
+            if attrCount[commonAttr] == objCount: # if the attribute shows up the same # of times as the # of objects, pass to textScrollList
+                commonAttrsTypes.append(attrTypeDict[commonAttr]) # adds to a new list of all common attrs types
+                commonAttrs.append(commonAttr) # adds to a new list of all common attrs
+                attribute_list.append(commonAttr) # attr appended to UI
+        commonAttrsDict = dict(zip(commonAttr,commonAttrs)) # in order to categorize everything, a dictionary is made of the new common attrs and their types
+
+        return commonAttrsDict
+
+
 
         # Unfortunately, the unique tag system shown in the PyMEL documentation does not work properly
         # Instead of adding unique tags to each textScrollList index, we must create a mirror list of the elements with the corresponding attr type
