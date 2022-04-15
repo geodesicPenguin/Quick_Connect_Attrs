@@ -3,10 +3,8 @@ This tool easily lets you connect multiple attributes between nodes within a UI.
 Made for py3 but if you want a py2 version lmk
 '''
 
-from ctypes import py_object
-from enum import unique
 import pymel.core as pm
-from sys import exit
+
 
 def ATTRIBUTE_UI():
     '''
@@ -42,8 +40,8 @@ def ATTRIBUTE_UI():
             with pm.rowLayout(numberOfColumns=menuItemNum):
                 pm.text(label='Destination Objects: ',width=w*1.5)
                 destInput = pm.textScrollList('dest_input',allowMultiSelection=1,width=w*2,append=initalSelect[1::])# default selected items indexed after 0)
-                destRefreshBtn = pm.button('refresh_dest',label="Refresh",annotation='Change list to current objects in selection.',command=pm.Callback(EDIT_SELECTION, edit_type='refresh', object_input=destInput)) # refreshes list to what is selected 
-                destRemoveBtn = pm.button('remove_object',label="Remove",annotation='Remove currenly hilighted object/s in list.',command=pm.Callback(EDIT_SELECTION, edit_type='remove', object_input=destInput)) # removes object from list
+                destRefreshBtn = pm.button('refresh_dest',label="Refresh",annotation='Change list to current objects in selection.') # refreshes list to what is selected 
+                destRemoveBtn = pm.button('remove_object',label="Remove",annotation='Remove currenly hilighted object/s in list.') # removes object from list
             with pm.rowLayout(numberOfColumns=menuItemNum):
                 pm.separator(height=10,width=w*5.15,style='in')
         
@@ -64,15 +62,13 @@ def ATTRIBUTE_UI():
 
     # All UI commands in order of appearance - Ease of use when updating functions in the fututre
     #sourceInput.textChangedCommand(pm.Callback(ATTRIBUTE_QUERY, edit_type = 'source', object_input = sourceInput, attribute_list = sourceAttrsList)) to be deleted 
-    sourceRefreshBtn.setCommand(pm.Callback(EDIT_SELECTION, edit_type='refresh', object_input=sourceInput, attribute_list=sourceAttrsList))
-    destRefreshBtn.setCommand(pm.Callback(EDIT_SELECTION, edit_type='refresh', object_input=destInput, attribute_list=destAttrsList))
-    destRemoveBtn.setCommand(pm.Callback(EDIT_SELECTION, edit_type='remove', object_input=destInput, attribute_list=destAttrsList))
+    sourceRefreshBtn.setCommand(pm.Callback(UI_REFRESH, edit_type='refresh', object_input=sourceInput, attribute_list=sourceAttrsList))
+    destRefreshBtn.setCommand(pm.Callback(UI_REFRESH, edit_type='refresh', object_input=destInput, attribute_list=destAttrsList))
+    destRemoveBtn.setCommand(pm.Callback(UI_REFRESH, edit_type='remove', object_input=destInput, attribute_list=destAttrsList))
 
-    
-def EDIT_SELECTION(edit_type,object_input,attribute_list):
+def UI_REFRESH(edit_type,object_input,attribute_list):
     '''
     Updates UI source and destination to add or remove selected objects.
-    Automatically runs ATTRIBUTE_QUERY func to update UI.
 
     returns None
     '''
@@ -85,12 +81,12 @@ def EDIT_SELECTION(edit_type,object_input,attribute_list):
             if len(activeSelection) > 1:
                 pm.Mel.mprint('Multiple things selected -- storing only first item in selection list.')
             object_input.setText(activeSelection[0])
-            ATTRIBUTE_QUERY(input_type='source', object_input=object_input, attribute_list=attribute_list)
+            sourceAttrs = ATTRIBUTE_QUERY(input_type='source', object_input=object_input, attribute_list=attribute_list)
 
         if 'dest_input' in object_input:
             object_input.removeAll()
             object_input.append(activeSelection)
-            ATTRIBUTE_QUERY(input_type='dest', object_input=object_input, attribute_list=attribute_list)
+            destAttrs = ATTRIBUTE_QUERY(input_type='dest', object_input=object_input, attribute_list=attribute_list)
             
     if edit_type == 'remove':
         if 'dest_input' in object_input:
@@ -98,23 +94,10 @@ def EDIT_SELECTION(edit_type,object_input,attribute_list):
                 object_input.removeItem(activeSelection)
                 ATTRIBUTE_QUERY(input_type='dest', object_input=object_input, attribute_list=attribute_list)
 
-def SELECTION_QUERY():
-    '''
-    Stores user selection.
-    Errors if nothing is selected.
-
-    returns selection list
-    '''
-
-    select = pm.ls(selection=1)
-    if not select:
-        pm.error("You must select something.")
-
-    return select
-
 def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
     '''
     Queries available attributes from source object and destination objects
+    Updates UI with new list of editable attributes.
     Does not allow for attributes that are not shared by all recieving an incoming connection.
     
     returns dictionary of all available attributes for connection on source or destination textScrollLists
@@ -127,8 +110,11 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
         sourceAttrs = sorted(pm.listAttr(sourceObject,connectable=1,settable=1))
 
         for attr in sourceAttrs:
+            try:
                 attrType = pm.attributeQuery(attr,attributeType=1,node=sourceObject)
                 sourceAttrsDict[attr] = attrType
+            except RuntimeError:
+                sourceAttrsDict[attr] = False
 
         attribute_list.removeAll()
         attribute_list.append(sourceAttrs)
@@ -150,8 +136,11 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
         for obj in destObjects:
             objAttrs = pm.listAttr(obj,connectable=1,settable=1)
             for attr in objAttrs:
-                attrType = pm.attributeQuery(attr,attributeType=1,node=obj) 
-                attrTypeDict[attr] = attrType # adds attr as key with attr type as value
+                try:
+                    attrType = pm.attributeQuery(attr,attributeType=1,node=obj) 
+                    attrTypeDict[attr] = attrType # adds attr as key with attr type as value
+                except RuntimeError:
+                    attrTypeDict[attr] = False 
             allAttrs.extend(objAttrs) # adds object attrs to list of all attrs ie: ['message','outColor','outColor']
 
         totalAttrs = sorted(list(set(allAttrs))) # casting as set removes duplicate attributes, then re-casting as a list allows sorting before getting attr types + appending.
@@ -167,9 +156,9 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
                 commonAttrsTypes.append(attrTypeDict[commonAttr]) # adds to a new list of all common attrs types
                 commonAttrs.append(commonAttr) # adds to a new list of all common attrs
                 attribute_list.append(commonAttr) # attr appended to UI
-        commonAttrsDict = dict(zip(commonAttr,commonAttrs)) # in order to categorize everything, a dictionary is made of the new common attrs and their types
+        commonDestAttrsDict = dict(zip(commonAttr,commonAttrs)) # in order to categorize everything, a dictionary is made of the new common attrs and their types
 
-        return commonAttrsDict
+        return commonDestAttrsDict
 
 
 
@@ -200,6 +189,20 @@ def CONNECT_ATTRIBUTES(attributes):
     Connects attributes.
     '''
     pass
+
+def SELECTION_QUERY():
+    '''
+    Stores user selection.
+    Errors if nothing is selected.
+
+    returns selection list
+    '''
+
+    select = pm.ls(selection=1)
+    if not select:
+        pm.error("You must select something.")
+
+    return select
 
 
 # something about attributes
