@@ -3,6 +3,7 @@ This tool easily lets you connect multiple attributes between nodes within a UI.
 Made for py3 but if you want a py2 version lmk
 '''
 
+from enum import unique
 import pymel.core as pm
 
 
@@ -105,19 +106,23 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
 
     # Getting source attrs simply finds the object's attrs and lists them in the textFieldList.
     if input_type == 'source':
+        uniqueTagNum = 0
         sourceAttrsDict = {}
         sourceObject = object_input.getText()
         sourceAttrs = sorted(pm.listAttr(sourceObject,connectable=1,settable=1))
+        attribute_list.removeAll()
 
         for attr in sourceAttrs:
+            uniqueTagNum += 1
             try:
                 attrType = pm.attributeQuery(attr,attributeType=1,node=sourceObject)
                 sourceAttrsDict[attr] = attrType
             except RuntimeError:
-                sourceAttrsDict[attr] = False
+                attrType = False
+                sourceAttrsDict[attr] = attrType
+            
 
-        attribute_list.removeAll()
-        attribute_list.append(sourceAttrs)
+            pm.textScrollList(attribute_list,edit=1,append=attr,uniqueTag=f'{attrType}_{uniqueTagNum}')
 
         return sourceAttrsDict
 
@@ -126,6 +131,7 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
     # Getting dest attrs is complex, since we only want attrs every object shares. 
     # We loop through all the objects to get their attrs, then display only attrs found in every object.
     if input_type == 'dest':
+        uniqueTagNum = 0
         allAttrs = []
         attrTypeDict = {}
         commonAttrs = []
@@ -140,7 +146,8 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
                     attrType = pm.attributeQuery(attr,attributeType=1,node=obj) 
                     attrTypeDict[attr] = attrType # adds attr as key with attr type as value
                 except RuntimeError:
-                    attrTypeDict[attr] = False 
+                    attrType = False
+                    attrTypeDict[attr] = attrType 
             allAttrs.extend(objAttrs) # adds object attrs to list of all attrs ie: ['message','outColor','outColor']
 
         totalAttrs = sorted(list(set(allAttrs))) # casting as set removes duplicate attributes, then re-casting as a list allows sorting before getting attr types + appending.
@@ -153,10 +160,20 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
 
         for commonAttr in totalAttrs:
             if attrCount[commonAttr] == objCount: # if the attribute shows up the same # of times as the # of objects, pass to textScrollList
-                commonAttrsTypes.append(attrTypeDict[commonAttr]) # adds to a new list of all common attrs types
+                uniqueTagNum += 1
+                commonAttrType = attrTypeDict[commonAttr]
+                commonAttrsTypes.append(commonAttrType) # adds to a new list of all common attrs types
                 commonAttrs.append(commonAttr) # adds to a new list of all common attrs
-                attribute_list.append(commonAttr) # attr appended to UI
-        commonDestAttrsDict = dict(zip(commonAttr,commonAttrs)) # in order to categorize everything, a dictionary is made of the new common attrs and their types
+                pm.textScrollList(attribute_list,edit=1,append=commonAttr,uniqueTag=f'{commonAttrType}_{uniqueTagNum}')
+        commonDestAttrsDict = dict(zip(commonAttrs,commonAttrsTypes)) # in order to categorize everything, a dictionary is made of the new common attrs and their types
+        
+        # attribute_list.setSelectItem('color')
+        # print(attribute_list.getSelectUniqueTagItem())
+        # attribute_list.setSelectItem('diffuse')
+        # attribute_list.setSelectUniqueTagItem('float3_1')
+        # print(attribute_list.getSelectUniqueTagItem())
+        # attribute_list.append('TEST').uniqueTag(['BLARF'])
+        # attribute_list.setSelectUniqueTagItem('BLARF')
 
         return commonDestAttrsDict
 
