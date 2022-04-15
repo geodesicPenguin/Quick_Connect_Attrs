@@ -66,6 +66,7 @@ def ATTRIBUTE_UI():
     sourceRefreshBtn.setCommand(pm.Callback(UI_REFRESH, edit_type='refresh', object_input=sourceInput, attribute_list=sourceAttrsList))
     destRefreshBtn.setCommand(pm.Callback(UI_REFRESH, edit_type='refresh', object_input=destInput, attribute_list=destAttrsList))
     destRemoveBtn.setCommand(pm.Callback(UI_REFRESH, edit_type='remove', object_input=destInput, attribute_list=destAttrsList))
+    destAttrsList.selectCommand(pm.Callback(CONNECTION_TYPE_QUERY,source_attrs_list=sourceAttrsList,dest_attrs_list=destAttrsList))
 
 def UI_REFRESH(edit_type,object_input,attribute_list):
     '''
@@ -82,12 +83,12 @@ def UI_REFRESH(edit_type,object_input,attribute_list):
             if len(activeSelection) > 1:
                 pm.Mel.mprint('Multiple things selected -- storing only first item in selection list.')
             object_input.setText(activeSelection[0])
-            sourceAttrs = ATTRIBUTE_QUERY(input_type='source', object_input=object_input, attribute_list=attribute_list)
+            ATTRIBUTE_QUERY(input_type='source', object_input=object_input, attribute_list=attribute_list)
 
         if 'dest_input' in object_input:
             object_input.removeAll()
             object_input.append(activeSelection)
-            destAttrs = ATTRIBUTE_QUERY(input_type='dest', object_input=object_input, attribute_list=attribute_list)
+            ATTRIBUTE_QUERY(input_type='dest', object_input=object_input, attribute_list=attribute_list)
             
     if edit_type == 'remove':
         if 'dest_input' in object_input:
@@ -101,13 +102,12 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
     Updates UI with new list of editable attributes.
     Does not allow for attributes that are not shared by all recieving an incoming connection.
     
-    returns dictionary of all available attributes for connection on source or destination textScrollLists
+    returns None
     '''
 
     # Getting source attrs simply finds the object's attrs and lists them in the textFieldList.
     if input_type == 'source':
         uniqueTagNum = 0
-        sourceAttrsDict = {}
         sourceObject = object_input.getText()
         sourceAttrs = sorted(pm.listAttr(sourceObject,connectable=1,settable=1))
         attribute_list.removeAll()
@@ -116,17 +116,12 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
             uniqueTagNum += 1
             try:
                 attrType = pm.attributeQuery(attr,attributeType=1,node=sourceObject)
-                sourceAttrsDict[attr] = attrType
             except RuntimeError:
                 attrType = False
-                sourceAttrsDict[attr] = attrType
+e
             
 
             pm.textScrollList(attribute_list,edit=1,append=attr,uniqueTag=f'{attrType}_{uniqueTagNum}')
-
-        return sourceAttrsDict
-
-         
 
     # Getting dest attrs is complex, since we only want attrs every object shares. 
     # We loop through all the objects to get their attrs, then display only attrs found in every object.
@@ -165,7 +160,6 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
                 commonAttrsTypes.append(commonAttrType) # adds to a new list of all common attrs types
                 commonAttrs.append(commonAttr) # adds to a new list of all common attrs
                 pm.textScrollList(attribute_list,edit=1,append=commonAttr,uniqueTag=f'{commonAttrType}_{uniqueTagNum}')
-        commonDestAttrsDict = dict(zip(commonAttrs,commonAttrsTypes)) # in order to categorize everything, a dictionary is made of the new common attrs and their types
         
         # attribute_list.setSelectItem('color')
         # print(attribute_list.getSelectUniqueTagItem())
@@ -175,24 +169,32 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
         # attribute_list.append('TEST').uniqueTag(['BLARF'])
         # attribute_list.setSelectUniqueTagItem('BLARF')
 
-        return commonDestAttrsDict
-
-
-
-        # Unfortunately, the unique tag system shown in the PyMEL documentation does not work properly
-        # Instead of adding unique tags to each textScrollList index, we must create a mirror list of the elements with the corresponding attr type
-        # ie: attr list = ["caching","translateX",...] attr type list = ["bool","flaot"]
-
 # NEXT, MAKE A "ON SELECTION" COMMAND FOR SOURCE SCROLL LIST TO UPDATE ATTRIBUTE FONTS BASED ON TYPE
-# FIRST NEED TO MAKE SOURCE INPUT IN ATTRIBUTE_QUERY SAVE OUT ATTR TYPES
-def CONNECTION_TYPE_QUERY(out_attrribute,in_attributes):
+
+def CONNECTION_TYPE_QUERY(source_attrs_list,dest_attrs_list):
     '''
     Updates destination textScrollList UI object to illustrate what connections are/aren't compatible.
-    '''
-    
-    outAttrType = pm.listAttr()
-    inAttrType = pm.listAttr()
+    Activates when source list item selected.
 
+    returns None
+    '''
+    pass
+
+    sourceAttrType = source_attrs_list.getSelectUniqueTagItem().split('_')[0]
+
+    #attrsList = dest_attrs_list.getAllItems()
+    destAttrTypes = dest_attrs_list.getSelectUniqueTagItem()
+    for attrType in destAttrTypes:
+        if sourceAttrType in attrType:
+            dest_attrs_list.setSelectUniqueTagItem(attrType)
+            # the way this works is really weird.
+            # the unique tag can only be used to add-select items in the list
+            # we will have to make it select everything (in a list of all attr types -- [float3_1,float3_4])
+            # then get their indices, THEn edit the text from there
+            # then DESELECT them... 
+            pm.textScrollList(dest_attrs_list,query=1,)
+        attribute_list.
+        if sourceAttrType in attr:
 
     incompatibleAttrs = 3
     lineIndex = -1
