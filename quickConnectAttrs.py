@@ -26,6 +26,10 @@ def ATTRIBUTE_UI():
     initalSelect = pm.ls(sl=1) # opens window with current selection as default inputs
     if not initalSelect:
         initalSelect = ['']
+        initialSourceAttrs = None
+    else:
+        initialSourceAttrs = pm.listAttr(initalSelect,settable=1,connectable=1)
+    
 
     with pm.window(mainWin,resizeToFitChildren=1,title='Connect Attributes',sizeable=0):
         
@@ -50,23 +54,25 @@ def ATTRIBUTE_UI():
             with pm.rowLayout(numberOfColumns=menuItemNum):
                 with pm.columnLayout():
                     pm.text(label='Source Attributes')
-                    sourceAttrsList = pm.textScrollList('source_attrs')#list of attrs on source obj -- UPDATE REG)
+                    sourceAttrsList = pm.textScrollList('source_attrs',append=initialSourceAttrs)#list of attrs on source obj -- UPDATE REG)
                 with pm.columnLayout():
                     pm.text(label='Destination Attributes')
                     destAttrsList = pm.textScrollList('dest_attrs',allowMultiSelection=1)
+                    destAttrsList.append(ATTRIBUTE_QUERY(input_type='dest',object_input=destInput,attribute_list=destAttrsList))
+
             # Execute or cancel
-        
             with pm.rowLayout(numberOfColumns=menuItemNum):
                 pm.separator(width=w*1.5,style='none')
-                pm.button('execute_button',label='OK',width=w,annotation='Connect attributes. This is undoable.')
-                pm.button('cancel_button',label='Cancel',width=w,command="print('CLOSE')")
+                execButton = pm.button('execute_button',label='OK',width=w,annotation='Connect attributes. This is undoable.')
+                cancelButton = pm.button('cancel_button',label='Cancel',width=w,command="print('CLOSE')")
 
     # All UI commands in order of appearance - Ease of use when updating functions in the fututre
     #sourceInput.textChangedCommand(pm.Callback(ATTRIBUTE_QUERY, edit_type = 'source', object_input = sourceInput, attribute_list = sourceAttrsList)) to be deleted 
     sourceRefreshBtn.setCommand(pm.Callback(UI_REFRESH, edit_type='refresh', object_input=sourceInput, attribute_list=sourceAttrsList))
     destRefreshBtn.setCommand(pm.Callback(UI_REFRESH, edit_type='refresh', object_input=destInput, attribute_list=destAttrsList))
     destRemoveBtn.setCommand(pm.Callback(UI_REFRESH, edit_type='remove', object_input=destInput, attribute_list=destAttrsList))
-    destAttrsList.selectCommand(pm.Callback(CONNECTION_TYPE_QUERY,source_attrs_list=sourceAttrsList,dest_attrs_list=destAttrsList))
+    sourceAttrsList.selectCommand(pm.Callback(CONNECTION_TYPE_QUERY, source_attrs_list=sourceAttrsList, dest_attrs_list=destAttrsList))
+    execButton.setCommand(pm.Callback(CONNECT_ATTRIBUTES, source_object=sourceInput, dest_objects=destInput, source_attribute=sourceAttrsList, dest_attributes=destAttrsList))
 
 def UI_REFRESH(edit_type,object_input,attribute_list):
     '''
@@ -118,7 +124,6 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
                 attrType = pm.attributeQuery(attr,attributeType=1,node=sourceObject)
             except RuntimeError:
                 attrType = False
-e
             
 
             pm.textScrollList(attribute_list,edit=1,append=attr,uniqueTag=f'{attrType}_{uniqueTagNum}')
@@ -160,7 +165,8 @@ e
                 commonAttrsTypes.append(commonAttrType) # adds to a new list of all common attrs types
                 commonAttrs.append(commonAttr) # adds to a new list of all common attrs
                 pm.textScrollList(attribute_list,edit=1,append=commonAttr,uniqueTag=f'{commonAttrType}_{uniqueTagNum}')
-        
+
+        return commonAttrs
         # attribute_list.setSelectItem('color')
         # print(attribute_list.getSelectUniqueTagItem())
         # attribute_list.setSelectItem('diffuse')
@@ -173,6 +179,8 @@ e
 
 def CONNECTION_TYPE_QUERY(source_attrs_list,dest_attrs_list):
     '''
+    WIP
+
     Updates destination textScrollList UI object to illustrate what connections are/aren't compatible.
     Activates when source list item selected.
 
@@ -180,34 +188,68 @@ def CONNECTION_TYPE_QUERY(source_attrs_list,dest_attrs_list):
     '''
     pass
 
-    sourceAttrType = source_attrs_list.getSelectUniqueTagItem().split('_')[0]
+    # sourceAttrType = source_attrs_list.getSelectUniqueTagItem()[0].split('_')[0] #takes off the unique tag number ie: the "_5" in "float3_5"
+    # attrTypeSelectList = []
+    # dest_attrs_list.selectAll()
+    # destAttrTypes = dest_attrs_list.getSelectUniqueTagItem()
+    # dest_attrs_list.deselectAll()
 
-    #attrsList = dest_attrs_list.getAllItems()
-    destAttrTypes = dest_attrs_list.getSelectUniqueTagItem()
-    for attrType in destAttrTypes:
-        if sourceAttrType in attrType:
-            dest_attrs_list.setSelectUniqueTagItem(attrType)
-            # the way this works is really weird.
-            # the unique tag can only be used to add-select items in the list
-            # we will have to make it select everything (in a list of all attr types -- [float3_1,float3_4])
-            # then get their indices, THEn edit the text from there
-            # then DESELECT them... 
-            pm.textScrollList(dest_attrs_list,query=1,)
-        attribute_list.
-        if sourceAttrType in attr:
+    # for attrType in destAttrTypes:
+    #     if sourceAttrType in attrType:
+    #         dest_attrs_list.setSelectUniqueTagItem(attrType)
+        
+    # #dest_attrs_list.getSelectItem()
+    # attrTypesIndices = dest_attrs_list.getSelectIndexedItem()
+    #         # the way this works is really weird.
+    #         # the unique tag can only be used to add-select items in the list
+    #         # we will have to make it select everything (in a list of all attr types -- [float3_1,float3_4])
+    #         # then get their indices, THEn edit the text from there
+    #         # then DESELECT them... 
+    # attrCount = dest_attrs_list.getNumberOfItems()
+    # for index in range(attrCount):
+    #     for selectedIndex in attrTypesIndices:
+    #         if index == selectedIndex:
+    #             dest_attrs_list.lineFont([selectedIndex,'boldLabelFont'])
+    #         else:
+    #             dest_attrs_list.lineFont([selectedIndex,'obliqueLabelFont'])
+    # dest_attrs_list.deselectAll()
+    # dest_attrs_list.showIndexedItem(1)
 
-    incompatibleAttrs = 3
-    lineIndex = -1
-    for attr in in_attributes:
-        if attr:
-            lineIndex += 1 
-            pm.textScrollList('dest_input',edit=1,lineFont=(lineIndex,'obliqueLabelFont'))
 
-def CONNECT_ATTRIBUTES(attributes):
+def CONNECT_ATTRIBUTES(source_object, dest_objects, source_attribute, dest_attributes):
     '''
     Connects attributes.
+
+    returns None
     '''
-    pass
+    
+
+    # print(
+    # dest_attributes.getSelectItem(),
+    # source_attribute.getSelectItem(),
+    # dest_objects.getAllItems(),
+    # source_object.getText(),
+    # sep='\n'
+    # )
+    
+    #print(source_object, dest_objects, source_attribute, dest_attributes,sep='\n')
+    errorLog = False
+
+    with pm.UndoChunk():
+        source = pm.Attribute(f'{source_object.getText()}.{source_attribute.getSelectItem()[0]}')
+        for obj in dest_objects.getAllItems():
+            for attr in dest_attributes.getSelectItem():
+                destination = pm.Attribute(f'{obj}.{attr}')
+                try:
+                    source.connect(destination)
+                except RuntimeError as e:
+                    pm.Mel.mprint('{}'.format(e))
+                    errorLog = True
+    if not errorLog:
+        pm.Mel.mprint('Connected attribute from {} to {} object(s)'.format(source,len(dest_objects.getAllItems())))
+    # fun fact: mprint doesn't like f-strings. 
+        
+
 
 def SELECTION_QUERY():
     '''
