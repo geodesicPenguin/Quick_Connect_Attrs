@@ -108,7 +108,7 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
     Updates UI with new list of editable attributes.
     Does not allow for attributes that are not shared by all recieving an incoming connection.
     
-    returns None
+    returns list of destination attributes
     '''
 
     # Getting source attrs simply finds the object's attrs and lists them in the textFieldList.
