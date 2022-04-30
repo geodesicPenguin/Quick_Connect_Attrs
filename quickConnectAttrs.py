@@ -1,9 +1,13 @@
 '''
+Version 1.0
+
 This tool easily lets you connect multiple attributes between nodes within a UI.
 Made for py3 but if you want a py2 version lmk
+
+For Py3.
+Github URL https://github.com/geodesicPenguin/Quick_Connect_Attrs
 '''
 
-from enum import unique
 import pymel.core as pm
 
 
@@ -67,7 +71,6 @@ def ATTRIBUTE_UI():
                 cancelButton = pm.button('cancel_button',label='Cancel',width=w,command="print('CLOSE')")
 
     # All UI commands in order of appearance - Ease of use when updating functions in the fututre
-    #sourceInput.textChangedCommand(pm.Callback(ATTRIBUTE_QUERY, edit_type = 'source', object_input = sourceInput, attribute_list = sourceAttrsList)) to be deleted 
     sourceRefreshBtn.setCommand(pm.Callback(UI_REFRESH, edit_type='refresh', object_input=sourceInput, attribute_list=sourceAttrsList))
     destRefreshBtn.setCommand(pm.Callback(UI_REFRESH, edit_type='refresh', object_input=destInput, attribute_list=destAttrsList))
     destRemoveBtn.setCommand(pm.Callback(UI_REFRESH, edit_type='remove', object_input=destInput, attribute_list=destAttrsList))
@@ -167,19 +170,11 @@ def ATTRIBUTE_QUERY(input_type, object_input, attribute_list):
                 pm.textScrollList(attribute_list,edit=1,append=commonAttr,uniqueTag=f'{commonAttrType}_{uniqueTagNum}')
 
         return commonAttrs
-        # attribute_list.setSelectItem('color')
-        # print(attribute_list.getSelectUniqueTagItem())
-        # attribute_list.setSelectItem('diffuse')
-        # attribute_list.setSelectUniqueTagItem('float3_1')
-        # print(attribute_list.getSelectUniqueTagItem())
-        # attribute_list.append('TEST').uniqueTag(['BLARF'])
-        # attribute_list.setSelectUniqueTagItem('BLARF')
 
-# NEXT, MAKE A "ON SELECTION" COMMAND FOR SOURCE SCROLL LIST TO UPDATE ATTRIBUTE FONTS BASED ON TYPE
 
 def CONNECTION_TYPE_QUERY(source_attrs_list,dest_attrs_list):
     '''
-    WIP
+    WIP. . . 
 
     Updates destination textScrollList UI object to illustrate what connections are/aren't compatible.
     Activates when source list item selected.
@@ -222,17 +217,7 @@ def CONNECT_ATTRIBUTES(source_object, dest_objects, source_attribute, dest_attri
 
     returns None
     '''
-    
 
-    # print(
-    # dest_attributes.getSelectItem(),
-    # source_attribute.getSelectItem(),
-    # dest_objects.getAllItems(),
-    # source_object.getText(),
-    # sep='\n'
-    # )
-    
-    #print(source_object, dest_objects, source_attribute, dest_attributes,sep='\n')
     errorLog = False
 
     with pm.UndoChunk():
@@ -264,14 +249,3 @@ def SELECTION_QUERY():
         pm.error("You must select something.")
 
     return select
-
-
-# something about attributes
-# sel = pm.ls(sl=1)[0]
-
-# attrList = pm.listAttr(sel)
-
-# for attr in attrList:
-
-#     attrObj = pm.Attribute(f'{sel}.{attr}')
-#     print(attrObj)
